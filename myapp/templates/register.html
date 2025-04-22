@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Register - BluePrint Project</title>
+    <title>Register</title>
     <style>
         * {
             margin: 0;
@@ -15,40 +15,28 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(120deg, #2ecc71, #3498db);
+            background: linear-gradient(120deg, #2980b9, #8e44ad);
         }
 
         .form-container {
             background: white;
-            max-width: 450px;
+            max-width: 400px;
             width: 90%;
             padding: 40px;
             border-radius: 10px;
             box-shadow: 0 15px 25px rgba(0, 0, 0, 0.2);
         }
 
-        .form-container h2 {
+        h2 {
             text-align: center;
             color: #2c3e50;
             margin-bottom: 30px;
             font-size: 2em;
             font-weight: 600;
-            position: relative;
-        }
-
-        .form-container h2:after {
-            content: '';
-            display: block;
-            width: 60px;
-            height: 3px;
-            background: #2ecc71;
-            margin: 10px auto;
-            border-radius: 3px;
         }
 
         .form-group {
-            margin-bottom: 25px;
-            position: relative;
+            margin-bottom: 20px;
         }
 
         .form-group label {
@@ -56,40 +44,32 @@
             margin-bottom: 8px;
             color: #34495e;
             font-weight: 500;
-            font-size: 0.9em;
         }
 
         .form-group input {
             width: 100%;
             padding: 12px 15px;
-            padding-left: 40px;
             border: 2px solid #ddd;
             border-radius: 6px;
             font-size: 1em;
             transition: all 0.3s ease;
-            outline: none;
         }
 
         .form-group input:focus {
-            border-color: #2ecc71;
-            box-shadow: 0 0 5px rgba(46, 204, 113, 0.3);
+            border-color: #3498db;
+            outline: none;
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
         }
 
-        .form-group i {
-            position: absolute;
-            left: 15px;
-            top: 42px;
-            color: #95a5a6;
-            transition: all 0.3s ease;
-        }
-
-        .form-group input:focus + i {
-            color: #2ecc71;
+        .helper-text {
+            font-size: 0.85em;
+            color: #7f8c8d;
+            margin-top: 5px;
         }
 
         .submit-btn {
             width: 100%;
-            background: #2ecc71;
+            background: #3498db;
             color: white;
             padding: 14px;
             border: none;
@@ -97,175 +77,109 @@
             cursor: pointer;
             font-size: 1em;
             font-weight: 600;
-            letter-spacing: 0.5px;
             transition: all 0.3s ease;
-            margin-top: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
         }
 
         .submit-btn:hover {
-            background: #27ae60;
+            background: #2980b9;
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }
 
-        .error-message {
-            background-color: #ffebee;
-            color: #c62828;
-            padding: 12px;
-            border-radius: 6px;
+        .messages {
             margin-bottom: 20px;
-            font-size: 0.9em;
-            text-align: center;
-            border: 1px solid #ffcdd2;
+        }
+
+        .messages .error {
+            color: #e74c3c;
+            padding: 10px;
+            background: #fde8e7;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        .messages .success {
+            color: #27ae60;
+            padding: 10px;
+            background: #e8f7ef;
+            border-radius: 4px;
+            margin-bottom: 10px;
         }
 
         .login-link {
             text-align: center;
             margin-top: 20px;
             color: #7f8c8d;
-            font-size: 0.9em;
         }
 
         .login-link a {
-            color: #2ecc71;
+            color: #3498db;
             text-decoration: none;
             font-weight: 600;
-            transition: color 0.3s ease;
         }
 
         .login-link a:hover {
-            color: #27ae60;
             text-decoration: underline;
         }
 
-        .password-requirements {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 6px;
-            margin-top: 20px;
-            font-size: 0.85em;
-            color: #666;
-        }
-
-        .password-requirements h3 {
-            color: #2c3e50;
-            font-size: 0.95em;
-            margin-bottom: 8px;
-        }
-
-        .password-requirements ul {
-            list-style: none;
-            padding-left: 0;
-        }
-
-        .password-requirements li {
-            margin: 5px 0;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .password-requirements li i {
-            color: #95a5a6;
-        }
-
-        /* Add animation for form elements */
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .form-container > * {
+        .otp-section {
+            display: none;
             animation: fadeIn 0.5s ease-out forwards;
         }
-
-        /* Custom styling for Django form elements */
-        #id_username, #id_password1, #id_password2 {
-            width: 100%;
-            padding: 12px 15px 12px 40px;
-            border: 2px solid #ddd;
-            border-radius: 6px;
-            font-size: 1em;
-            transition: all 0.3s ease;
-            outline: none;
+        
+        .otp-section.show {
+            display: block;
         }
-
-        #id_username:focus, #id_password1:focus, #id_password2:focus {
-            border-color: #2ecc71;
-            box-shadow: 0 0 5px rgba(46, 204, 113, 0.3);
-        }
-
-        .help-text {
-            font-size: 0.85em;
-            color: #666;
-            margin-top: 5px;
+        
+        .otp-input {
+            letter-spacing: 8px;
+            font-size: 1.2em;
+            text-align: center;
         }
     </style>
-    <!-- Add Font Awesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
     <div class="form-container">
         <h2>Create Account</h2>
+        
+        {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                <div class="{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
         <form method="post">
             {% csrf_token %}
-            {% if form.errors %}
-                <div class="error-message">
-                    <i class="fas fa-exclamation-circle"></i>
-                    {% for field, errors in form.errors.items %}
-                        {% for error in errors %}
-                            {{ error }}
-                        {% endfor %}
-                    {% endfor %}
+            <div class="registration-section" {% if show_otp %}style="display: none;"{% endif %}>
+                <div class="form-group">
+                    <label for="identifier">Username / Email / Phone</label>
+                    <input type="text" id="identifier" name="identifier" value="{{ identifier|default:'' }}" required>
+                    <div class="helper-text">Enter your username, email, or phone number</div>
                 </div>
-            {% endif %}
-            
-            <div class="form-group">
-                <label for="id_username">Username</label>
-                {{ form.username }}
-                <i class="fas fa-user"></i>
-                {% if form.username.help_text %}
-                    <div class="help-text">{{ form.username.help_text }}</div>
-                {% endif %}
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="id_password1">Password</label>
-                {{ form.password1 }}
-                <i class="fas fa-lock"></i>
-            </div>
-
-            <div class="form-group">
-                <label for="id_password2">Confirm Password</label>
-                {{ form.password2 }}
-                <i class="fas fa-lock"></i>
-            </div>
-
-            <div class="password-requirements">
-                <h3><i class="fas fa-shield-alt"></i> Password Requirements</h3>
-                <ul>
-                    <li><i class="fas fa-check-circle"></i> At least 8 characters long</li>
-                    <li><i class="fas fa-check-circle"></i> Cannot be entirely numeric</li>
-                    <li><i class="fas fa-check-circle"></i> Cannot be too common</li>
-                    <li><i class="fas fa-check-circle"></i> Cannot be similar to your username</li>
-                </ul>
+            <div class="otp-section {% if show_otp %}show{% endif %}">
+                <div class="form-group">
+                    <label for="otp">Enter OTP</label>
+                    <input type="text" id="otp" name="otp" class="otp-input" maxlength="6" required {% if not show_otp %}disabled{% endif %}>
+                    <div class="helper-text">Enter the 6-digit OTP sent to your email/phone</div>
+                </div>
+                <input type="hidden" name="identifier" value="{{ identifier|default:'' }}">
             </div>
 
             <button type="submit" class="submit-btn">
-                <i class="fas fa-user-plus"></i>
-                Create Account
+                {% if show_otp %}Verify OTP{% else %}Register{% endif %}
             </button>
         </form>
+        
         <div class="login-link">
             <p>Already have an account? <a href="{% url 'login' %}">Login here</a></p>
         </div>

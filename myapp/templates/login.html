@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Login - BluePrint Project</title>
+    <title>Login</title>
     <style>
         * {
             margin: 0;
@@ -163,32 +163,35 @@
 </head>
 <body>
     <div class="form-container">
-        <h2>Welcome Back</h2>
+        <h2>Login</h2>
+        
+        {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                <div class="{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
         <form method="post">
             {% csrf_token %}
-            {% if form.errors %}
-                <div class="error-message">
-                    <i class="fas fa-exclamation-circle"></i>
-                    Invalid username or password
-                </div>
-            {% endif %}
             <div class="form-group">
-                <label for="id_username">
-                    <i class="fas fa-user"></i> Username
-                </label>
-                {{ form.username }}
+                <label for="identifier">Username / Email / Phone</label>
+                <input type="text" id="identifier" name="identifier" required>
+                <div class="helper-text">Enter your username, email, or phone number</div>
             </div>
+
             <div class="form-group">
-                <label for="id_password">
-                    <i class="fas fa-lock"></i> Password
-                </label>
-                {{ form.password }}
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
             </div>
-            <button type="submit" class="submit-btn">
-                <i class="fas fa-sign-in-alt"></i> Login
-            </button>
+
+            <button type="submit" class="submit-btn">Login</button>
         </form>
-        <div class="register-link">
+        
+        <div class="login-link">
             <p>Don't have an account? <a href="{% url 'register' %}">Register here</a></p>
         </div>
     </div>
