@@ -8,33 +8,33 @@ from .models import UserProfile
 from .utils import send_otp_to_console, is_email, is_phone_number
 import re
 import random
-
-def is_email(value):
-    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    return re.match(email_regex, value) is not None
-
-def is_phone_number(value):
-    phone_regex = r'^\+?1?\d{9,15}$'
-    return re.match(phone_regex, value) is not None
+from django.utils import timezone
 
 def register_view(request):
     if request.method == 'POST':
+        username = request.POST.get('username')
         identifier = request.POST.get('identifier')
         password = request.POST.get('password')
         otp = request.POST.get('otp')
+        resend_otp = request.POST.get('resend_otp') == 'true'
 
         # If OTP is not provided, this is the first step
         if not otp:
-            # Check if user already exists
+            # Check if username already exists
+            if User.objects.filter(username=username).exists():
+                messages.error(request, 'Username already exists')
+                return render(request, 'register.html')
+
+            # Check if email/phone already exists
             if User.objects.filter(email=identifier).exists() or \
                UserProfile.objects.filter(phone_number=identifier).exists():
-                messages.error(request, 'User already exists')
+                messages.error(request, 'Email or phone number already registered')
                 return render(request, 'register.html')
 
             # Create user first
             if is_email(identifier):
                 user = User.objects.create_user(
-                    username=identifier.split('@')[0],
+                    username=username,
                     email=identifier,
                     password=password
                 )
@@ -44,7 +44,7 @@ def register_view(request):
                 )
             else:
                 user = User.objects.create_user(
-                    username=f"user_{identifier}",
+                    username=username,
                     password=password
                 )
                 profile = UserProfile.objects.create(
@@ -55,60 +55,128 @@ def register_view(request):
 
             # Generate and send OTP
             new_otp = profile.generate_otp()
+            if new_otp is None:
+                messages.error(request, 'Too many OTP requests. Please try again later.')
+                # Delete the user if OTP generation fails
+                user.delete()
+                return render(request, 'register.html')
+                
             send_otp_to_console(identifier, new_otp)
             
-            # Store user ID in session for verification
+            # Store user ID and identifier in session for verification
             request.session['pending_verification_user_id'] = user.id
+            request.session['pending_verification_identifier'] = identifier
             
-            messages.success(request, 'OTP sent! Check console (Development mode)')
+            messages.success(request, f'OTP sent! Check console (Development mode). Your OTP is: {new_otp}')
             return render(request, 'register.html', {'show_otp': True, 'identifier': identifier})
 
         else:
+            # Handle resend OTP request
+            if resend_otp:
+                user_id = request.session.get('pending_verification_user_id')
+                stored_identifier = request.session.get('pending_verification_identifier')
+                
+                if not user_id or not stored_identifier:
+                    messages.error(request, 'Registration data not found. Please try again.')
+                    return render(request, 'register.html')
+                
+                try:
+                    user = User.objects.get(id=user_id)
+                    profile = user.userprofile
+                    
+                    # Generate a new OTP
+                    new_otp = profile.generate_otp()
+                    if new_otp is None:
+                        messages.error(request, 'Too many OTP requests. Please try again later.')
+                        return render(request, 'register.html', {'show_otp': True, 'identifier': stored_identifier})
+                    
+                    send_otp_to_console(stored_identifier, new_otp)
+                    messages.success(request, f'New OTP sent! Check console (Development mode). Your OTP is: {new_otp}')
+                    return render(request, 'register.html', {'show_otp': True, 'identifier': stored_identifier})
+                    
+                except (User.DoesNotExist, UserProfile.DoesNotExist):
+                    messages.error(request, 'User not found. Please try registering again.')
+                    # Clear session data
+                    if 'pending_verification_user_id' in request.session:
+                        del request.session['pending_verification_user_id']
+                    if 'pending_verification_identifier' in request.session:
+                        del request.session['pending_verification_identifier']
+                    return render(request, 'register.html')
+            
             # Verify OTP
             user_id = request.session.get('pending_verification_user_id')
-            if not user_id:
-                messages.error(request, 'Registration data not found')
+            stored_identifier = request.session.get('pending_verification_identifier')
+            
+            if not user_id or not stored_identifier:
+                messages.error(request, 'Registration data not found. Please try again.')
                 return render(request, 'register.html')
+                
+            # Verify that the identifier matches what was used during registration
+            if identifier != stored_identifier:
+                messages.error(request, 'Identifier mismatch. Please use the same email/phone used during registration.')
+                return render(request, 'register.html', {'show_otp': True, 'identifier': stored_identifier})
 
             try:
                 user = User.objects.get(id=user_id)
                 profile = user.userprofile
+                
+                # Debug information
+                print(f"Verifying OTP: {otp}")
+                print(f"Stored OTP hash: {profile.otp_hash}")
+                print(f"OTP created at: {profile.otp_created_at}")
+                
+                # Verify the OTP
+                verification_result = profile.verify_otp(otp)
+                print(f"Verification result: {verification_result}")
 
-                if profile.verify_otp(otp):
+                if verification_result:
                     # Mark verification as complete
-                    if is_email(identifier):
+                    if is_email(stored_identifier):
                         profile.is_email_verified = True
                     else:
                         profile.is_phone_verified = True
                     profile.save()
 
+                    # Clear session data
                     del request.session['pending_verification_user_id']
+                    del request.session['pending_verification_identifier']
+                    
                     login(request, user)
                     messages.success(request, 'Registration successful!')
                     return redirect('home')
                 else:
-                    messages.error(request, 'Invalid or expired OTP')
-                    return render(request, 'register.html', {'show_otp': True, 'identifier': identifier})
+                    # Check if OTP is expired
+                    if profile.otp_created_at and timezone.now() > profile.otp_created_at + timezone.timedelta(minutes=10):
+                        messages.error(request, 'OTP has expired. Please request a new one.')
+                    else:
+                        messages.error(request, 'Invalid OTP. Please try again.')
+                    return render(request, 'register.html', {'show_otp': True, 'identifier': stored_identifier})
 
             except (User.DoesNotExist, UserProfile.DoesNotExist):
-                messages.error(request, 'User not found')
+                messages.error(request, 'User not found. Please try registering again.')
+                # Clear session data
+                if 'pending_verification_user_id' in request.session:
+                    del request.session['pending_verification_user_id']
+                if 'pending_verification_identifier' in request.session:
+                    del request.session['pending_verification_identifier']
                 return render(request, 'register.html')
 
     return render(request, 'register.html')
 
 def login_view(request):
     if request.method == 'POST':
-        identifier = request.POST.get('identifier')
+        login_identifier = request.POST.get('login_identifier')
         password = request.POST.get('password')
 
         try:
-            if is_email(identifier):
-                user = User.objects.get(email=identifier)
-            elif is_phone_number(identifier):
-                profile = UserProfile.objects.get(phone_number=identifier)
+            # Try to find user by username, email, or phone number
+            if is_email(login_identifier):
+                user = User.objects.get(email=login_identifier)
+            elif is_phone_number(login_identifier):
+                profile = UserProfile.objects.get(phone_number=login_identifier)
                 user = profile.user
             else:
-                user = User.objects.get(username=identifier)
+                user = User.objects.get(username=login_identifier)
 
             if user.check_password(password):
                 login(request, user)

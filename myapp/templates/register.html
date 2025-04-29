@@ -135,6 +135,58 @@
             font-size: 1.2em;
             text-align: center;
         }
+        
+        .resend-otp {
+            text-align: center;
+            margin-top: 15px;
+        }
+        
+        .resend-otp a {
+            color: #3498db;
+            text-decoration: none;
+            font-size: 0.9em;
+            cursor: pointer;
+        }
+        
+        .resend-otp a:hover {
+            text-decoration: underline;
+        }
+        
+        .resend-otp.disabled {
+            color: #95a5a6;
+            cursor: not-allowed;
+        }
+        
+        .timer {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+        
+        .otp-instructions {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            color: #34495e;
+            line-height: 1.5;
+        }
+        
+        .otp-instructions h3 {
+            margin-bottom: 10px;
+            color: #2c3e50;
+            font-size: 1em;
+        }
+        
+        .otp-instructions ul {
+            padding-left: 20px;
+        }
+        
+        .otp-instructions li {
+            margin-bottom: 5px;
+        }
     </style>
 </head>
 <body>
@@ -155,9 +207,15 @@
             {% csrf_token %}
             <div class="registration-section" {% if show_otp %}style="display: none;"{% endif %}>
                 <div class="form-group">
-                    <label for="identifier">Username / Email / Phone</label>
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required>
+                    <div class="helper-text">Choose a unique username</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="identifier">Email / Phone</label>
                     <input type="text" id="identifier" name="identifier" value="{{ identifier|default:'' }}" required>
-                    <div class="helper-text">Enter your username, email, or phone number</div>
+                    <div class="helper-text">Enter your email or phone number</div>
                 </div>
 
                 <div class="form-group">
@@ -167,11 +225,28 @@
             </div>
 
             <div class="otp-section {% if show_otp %}show{% endif %}">
+                <div class="otp-instructions">
+                    <h3>OTP Verification</h3>
+                    <ul>
+                        <li>A 6-digit OTP has been sent to your email/phone.</li>
+                        <li>Enter the OTP below to complete your registration.</li>
+                        <li>The OTP will expire in 5 minutes.</li>
+                        <li>You can request a new OTP if needed.</li>
+                    </ul>
+                </div>
+                
                 <div class="form-group">
                     <label for="otp">Enter OTP</label>
                     <input type="text" id="otp" name="otp" class="otp-input" maxlength="6" required {% if not show_otp %}disabled{% endif %}>
                     <div class="helper-text">Enter the 6-digit OTP sent to your email/phone</div>
                 </div>
+                
+                <div class="timer" id="otp-timer">OTP expires in: <span id="countdown">5:00</span></div>
+                
+                <div class="resend-otp">
+                    <a href="#" id="resend-otp-link">Resend OTP</a>
+                </div>
+                
                 <input type="hidden" name="identifier" value="{{ identifier|default:'' }}">
             </div>
 
@@ -184,5 +259,55 @@
             <p>Already have an account? <a href="{% url 'login' %}">Login here</a></p>
         </div>
     </div>
+    
+    <script>
+        // Timer for OTP expiration
+        function startTimer(duration, display) {
+            var timer = duration, minutes, seconds;
+            var countdownInterval = setInterval(function () {
+                minutes = parseInt(timer / 60, 10);
+                seconds = parseInt(timer % 60, 10);
+
+                minutes = minutes < 10 ? "0" + minutes : minutes;
+                seconds = seconds < 10 ? "0" + seconds : seconds;
+
+                display.textContent = minutes + ":" + seconds;
+
+                if (--timer < 0) {
+                    clearInterval(countdownInterval);
+                    display.textContent = "EXPIRED";
+                    document.getElementById('resend-otp-link').classList.remove('disabled');
+                }
+            }, 1000);
+        }
+
+        // Start the timer if we're on the OTP verification page
+        window.onload = function () {
+            var fiveMinutes = 60 * 5,
+                display = document.getElementById('countdown');
+            
+            if (display) {
+                startTimer(fiveMinutes, display);
+                
+                // Disable resend button initially
+                document.getElementById('resend-otp-link').classList.add('disabled');
+                
+                // Add event listener for resend button
+                document.getElementById('resend-otp-link').addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (!this.classList.contains('disabled')) {
+                        // Submit the form with a special parameter to indicate resend
+                        var form = document.querySelector('form');
+                        var resendInput = document.createElement('input');
+                        resendInput.type = 'hidden';
+                        resendInput.name = 'resend_otp';
+                        resendInput.value = 'true';
+                        form.appendChild(resendInput);
+                        form.submit();
+                    }
+                });
+            }
+        };
+    </script>
 </body>
 </html>

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Projects in {{ domain }}</title>
+</head>
+<body>
+    <h2>Projects in {{ domain }}</h2>
+    <ul>
+        {% for project in projects %}
+            <li>
+                <strong>{{ project.title }}</strong> by {{ project.user.username }}<br>
+                {% if project.description %}<em>{{ project.description }}</em><br>{% endif %}
+                <a href="{{ project.file.url }}">Download File</a>
+                <span>Uploaded at: {{ project.uploaded_at }}</span>
+            </li>
+        {% empty %}
+            <li>No projects found in this domain.</li>
+        {% endfor %}
+    </ul>
+</body>
+</html> 

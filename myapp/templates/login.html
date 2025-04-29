@@ -114,6 +114,23 @@
             text-decoration: underline;
         }
 
+        .forgot-password {
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        .forgot-password a {
+            color: #3498db;
+            text-decoration: none;
+            font-size: 0.9em;
+            transition: color 0.3s ease;
+        }
+
+        .forgot-password a:hover {
+            color: #2980b9;
+            text-decoration: underline;
+        }
+
         /* Add icon support */
         .form-group {
             position: relative;
@@ -178,8 +195,8 @@
         <form method="post">
             {% csrf_token %}
             <div class="form-group">
-                <label for="identifier">Username / Email / Phone</label>
-                <input type="text" id="identifier" name="identifier" required>
+                <label for="login_identifier">Username / Email / Phone</label>
+                <input type="text" id="login_identifier" name="login_identifier" required>
                 <div class="helper-text">Enter your username, email, or phone number</div>
             </div>
 
@@ -190,6 +207,10 @@
 
             <button type="submit" class="submit-btn">Login</button>
         </form>
+        
+        <div class="forgot-password">
+            <a href="{% url 'password_reset' %}">Forgot Password?</a>
+        </div>
         
         <div class="login-link">
             <p>Don't have an account? <a href="{% url 'register' %}">Register here</a></p>
