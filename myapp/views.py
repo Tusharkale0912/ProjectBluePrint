@@ -1,14 +1,17 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.contrib.auth.models import User
-from .models import UserProfile
+from .models import UserProfile, Cart, CartItem
 from .utils import send_otp_to_console, is_email, is_phone_number
 import re
 import random
 from django.utils import timezone
+from django.contrib.messages import constants as message_constants
+
+MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
 
 def register_view(request):
     if request.method == 'POST':
@@ -28,8 +31,21 @@ def register_view(request):
             # Check if email/phone already exists
             if User.objects.filter(email=identifier).exists() or \
                UserProfile.objects.filter(phone_number=identifier).exists():
-                messages.error(request, 'Email or phone number already registered')
-                return render(request, 'register.html')
+                # Check if the user is partially registered and clean up
+                if User.objects.filter(email=identifier).exists():
+                    user = User.objects.get(email=identifier)
+                    if not user.userprofile.is_email_verified:
+                        user.delete()
+                elif UserProfile.objects.filter(phone_number=identifier).exists():
+                    profile = UserProfile.objects.get(phone_number=identifier)
+                    if not profile.is_phone_verified:
+                        profile.user.delete()
+
+                # Recheck after cleanup
+                if User.objects.filter(email=identifier).exists() or \
+                   UserProfile.objects.filter(phone_number=identifier).exists():
+                    messages.error(request, 'Email or phone number already registered')
+                    return render(request, 'register.html')
 
             # Create user first
             if is_email(identifier):
@@ -140,13 +156,14 @@ def register_view(request):
                     # Clear session data
                     del request.session['pending_verification_user_id']
                     del request.session['pending_verification_identifier']
-                    
-                    login(request, user)
-                    messages.success(request, 'Registration successful!')
-                    return redirect('home')
+
+                    # Debugging logs to confirm OTP verification flow
+                    print("OTP verification successful. Redirecting to login page.")
+                    messages.success(request, 'Verification successful! Please log in.')
+                    return redirect('login')
                 else:
                     # Check if OTP is expired
-                    if profile.otp_created_at and timezone.now() > profile.otp_created_at + timezone.timedelta(minutes=10):
+                    if profile.otp_created_at and timezone.now() > profile.otp_created_at + timezone.timedelta(minutes=5):
                         messages.error(request, 'OTP has expired. Please request a new one.')
                     else:
                         messages.error(request, 'Invalid OTP. Please try again.')
@@ -258,11 +275,45 @@ def delete_user(request, user_id):
         messages.error(request, "You don't have permission to delete users")
         return redirect('home')
     
-    try:
-        user = User.objects.get(id=user_id)
-        user.delete()
-        messages.success(request, "User deleted successfully")
-    except User.DoesNotExist:
-        messages.error(request, "User not found")
-    
-    return redirect('admin:auth_user_changelist')
+    # Add confirmation step for user deletion
+    if request.method == 'POST':
+        try:
+            user = User.objects.get(id=user_id)
+            # Log superuser actions for accountability
+            if request.user.is_superuser:
+                print(f"Superuser {request.user.username} deleted user {user_id}")
+            user.delete()
+            messages.success(request, "User deleted successfully")
+        except User.DoesNotExist:
+            messages.error(request, "User not found")
+        return redirect('admin:auth_user_changelist')
+    return render(request, 'confirm_delete.html', {'user_id': user_id})
+
+@login_required
+def add_to_cart(request, product_name, price):
+    # Get or create the cart for the logged-in user
+    cart, created = Cart.objects.get_or_create(user=request.user)
+
+    # Check if the item already exists in the cart
+    cart_item, created = CartItem.objects.get_or_create(
+        cart=cart, product_name=product_name, price=price
+    )
+
+    if not created:
+        # If the item already exists, increase the quantity
+        cart_item.quantity += 1
+        cart_item.save()
+
+    return redirect('cart')
+
+@login_required
+def view_cart(request):
+    # Get the cart for the logged-in user
+    cart = get_object_or_404(Cart, user=request.user)
+    cart_items = cart.cartitem_set.all()
+    total_price = cart.total_price()
+
+    return render(request, 'cart.html', {
+        'cart_items': cart_items,
+        'total_price': total_price
+    })

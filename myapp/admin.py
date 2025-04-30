@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
-from .models import UserProfile
+from .models import UserProfile, Cart, CartItem
 
 # Register UserProfile in admin
 class UserProfileInline(admin.StackedInline):
@@ -22,5 +22,15 @@ class CustomUserAdmin(UserAdmin):
 # Re-register UserAdmin
 admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
+
+@admin.register(Cart)
+class CartAdmin(admin.ModelAdmin):
+    list_display = ('user', 'created_at')
+    search_fields = ('user__username',)
+
+@admin.register(CartItem)
+class CartItemAdmin(admin.ModelAdmin):
+    list_display = ('cart', 'product_name', 'price', 'quantity')
+    search_fields = ('product_name', 'cart__user__username')
 
 # Register your models here.

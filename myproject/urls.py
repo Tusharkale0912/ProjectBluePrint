@@ -35,7 +35,7 @@ urlpatterns = [
     path('register/', register_view, name='register'),
     path('logout/', LogoutView.as_view(next_page='login'), name='logout'),
     path('projects/', include('project_uploader.urls')),
-    
+    path('', include('myapp.urls')),
     # Password Reset URLs
     path('password-reset/', 
          PasswordResetView.as_view(

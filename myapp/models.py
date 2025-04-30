@@ -24,6 +24,10 @@ class UserProfile(models.Model):
             if time_since_last.total_seconds() < 3600:  # 1 hour in seconds
                 return None  # Rate limit exceeded
         
+        # Reset attempts if more than an hour has passed
+        if self.otp_created_at and (timezone.now() - self.otp_created_at).total_seconds() >= 3600:
+            self.otp_attempts = 0
+
         # Generate a random 6-digit OTP
         otp = ''.join(random.choices(string.digits, k=6))
         
@@ -33,7 +37,7 @@ class UserProfile(models.Model):
         # Store the hash and reset attempts
         self.otp_hash = otp_hash
         self.otp_created_at = timezone.now()
-        self.otp_attempts = 0
+        self.otp_attempts += 1
         self.save()
         
         return otp
@@ -79,4 +83,28 @@ class Creator(models.Model):
     email = models.EmailField(unique=True)
     age = models.IntegerField()
     number = models.IntegerField()
+
+
+class Cart(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Cart of {self.user.username if self.user else 'Guest'}"
+
+    def total_price(self):
+        return sum(item.total_price() for item in self.cartitem_set.all() if item is not None)
+
+
+class CartItem(models.Model):
+    cart = models.ForeignKey(Cart, on_delete=models.CASCADE)
+    product_name = models.CharField(max_length=255)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    quantity = models.PositiveIntegerField(default=1)
+
+    def __str__(self):
+        return f"{self.product_name} ({self.quantity})"
+
+    def total_price(self):
+        return self.price * self.quantity
 
